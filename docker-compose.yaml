@@ -3,12 +3,16 @@ version: "3"
 networks:
   laravel:
 
+volumes:
+  db-data:
+  pgadmin-data:
+
 services:
   site:
     build:
       context: .
-      dockerfile: docker/nginx/Dockerfile
-    container_name: nginx
+      dockerfile: .docker/nginx/Dockerfile
+    container_name: site
     ports:
       - "8080:80"
     volumes:
@@ -22,6 +26,7 @@ services:
   db:
     image: postgres:12
     restart: unless-stopped
+    container_name: db
     tty: true
     environment:
       POSTGRES_USER: homestead
@@ -31,15 +36,22 @@ services:
     ports:
       - 5433:5432
     volumes:
-      - postgresql-data:/var/lib/postgresql/data/
+      - db-data:/var/lib/postgresql/data/
     networks:
       - laravel
 
   php:
     build:
       context: .
-      dockerfile: docker/php/Dockerfile
+      dockerfile: .docker/php/Dockerfile
     container_name: php
+    environment:
+      DB_CONNECTION: pgsql
+      DB_DATABASE: homestead
+      DB_USERNAME: homestead
+      DB_PASSWORD: secret
+      DB_HOST: db
+      DB_PORT: 5432
     volumes:
       - ./src:/var/www/html:delegated
     ports:
@@ -50,7 +62,7 @@ services:
   composer:
     build:
       context: .
-      dockerfile: docker/composer/Dockerfile
+      dockerfile: .docker/composer/Dockerfile
     container_name: composer
     volumes:
       - ./src:/var/www/html
@@ -73,7 +85,7 @@ services:
   artisan:
     build:
       context: .
-      dockerfile: docker/php/Dockerfile
+      dockerfile: .docker/php/Dockerfile
     container_name: artisan
     volumes:
       - ./src:/var/www/html:delegated
@@ -87,6 +99,7 @@ services:
 
   pgadmin:
     image: dpage/pgadmin4
+    container_name: pgadmin
     environment:
       - PGADMIN_DEFAULT_EMAIL=homestead
       - PGADMIN_DEFAULT_PASSWORD=secret
@@ -99,13 +112,13 @@ services:
 
   redis:
     image: "redis:alpine"
-    container_name: laravel_redis
-    command: redis-server --requirepass ${REDIS_PASSWORD}
+    container_name: redis
+    command: redis-server --requirepass 0000
     ports:
       - "6382:6379"
     volumes:
-      - ./storage/redis-data:/data
-      - ./storage/redis-data:/var/lib/redis
+      - ./.docker/storage/redis-data:/data
+      - ./.docker/storage/redis-data:/var/lib/redis
     restart: always
     networks:
       - laravel
